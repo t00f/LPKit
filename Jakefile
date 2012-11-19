@@ -44,7 +44,6 @@ framework ("LPKit", function(task)
     task.setResources(new FileList("Resources/*"));
     task.setInfoPlistPath("Info.plist");
 
-
     if (configuration === "Debug")
         task.setCompilerFlags("-DDEBUG -g");
     else
