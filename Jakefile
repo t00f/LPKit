@@ -1,48 +1,38 @@
 /*
  * Jakefile
- * LPKit
  *
- * Created by Ludwig Pettersson on November 9, 2009.
- * 
- * The MIT License
- * 
- * Copyright (c) 2009 Ludwig Pettersson
- * 
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- * 
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
- * 
+ * Copyright (C) 2010  Antoine Mercadal <antoine.mercadal@inframonde.eu>
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 3.0 of the License, or (at your option) any later version.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-var OS = require("os"),
-    ENV = require("system").env,
+
+var ENV = require("system").env,
     FILE = require("file"),
-    JAKE = require("jake"),
+	OS = require("os"),
+	JAKE = require("jake"),
     task = JAKE.task,
     CLEAN = require("jake/clean").CLEAN,
     FileList = JAKE.FileList,
     framework = require("cappuccino/jake").framework,
-    browserEnvironment = require("objective-j/jake/environment").Browser,
-    configuration = ENV["CONFIG"] || ENV["CONFIGURATION"] || ENV["c"] || "Debug";
+    configuration = ENV["CONFIGURATION"] || "Release";
 
 framework ("LPKit", function(task)
-{   
-    task.setBuildIntermediatesPath(FILE.join(ENV["CAPP_BUILD"], "LPKit.build", configuration));
-    task.setBuildPath(FILE.join(ENV["CAPP_BUILD"], configuration));
+{
+    task.setBuildIntermediatesPath(FILE.join("Build", "LPKit.build", configuration));
+    task.setBuildPath(FILE.join("Build", configuration));
 
     task.setProductName("LPKit");
     task.setIdentifier("com.luddep.LPKit");
@@ -50,11 +40,10 @@ framework ("LPKit", function(task)
     task.setAuthor("Ludwig Pettersson");
     task.setEmail("luddep@gmail.com");
     task.setSummary("A collection of re-usable views, controls & utilities for Cappuccino.");
-    task.setSources(new FileList("*.j"));
-    task.setResources(new FileList("Resources/**/*"));
-    //task.setEnvironments([browserEnvironment]);
-    //task.setFlattensSources(true);
+    task.setSources(new FileList("*.j", "LPKit/*.j"));
+    task.setResources(new FileList("Resources/*"));
     task.setInfoPlistPath("Info.plist");
+
 
     if (configuration === "Debug")
         task.setCompilerFlags("-DDEBUG -g");
@@ -62,40 +51,36 @@ framework ("LPKit", function(task)
         task.setCompilerFlags("-O");
 });
 
-task ("debug", function()
+task("build", ["LPKit"]);
+
+task("debug", function()
 {
-    ENV["CONFIGURATION"] = "Debug";
+    ENV["CONFIGURATION"] = "Debug"
     JAKE.subjake(["."], "build", ENV);
 });
 
-task ("release", function()
+task("release", function()
 {
-    ENV["CONFIGURATION"] = "Release";
+    ENV["CONFIGURATION"] = "Release"
     JAKE.subjake(["."], "build", ENV);
+});
+
+task ("documentation", function()
+{
+   OS.system("doxygen LPKit.doxygen")
+});
+
+task("test", function()
+{
+    var tests = new FileList('Test/*Test.j');
+    var cmd = ["ojtest"].concat(tests.items());
+    var cmdString = cmd.map(OS.enquote).join(" ");
+
+    var code = OS.system(cmdString);
+    if (code !== 0)
+        OS.exit(code);
 });
 
 task ("default", ["release"]);
-
-task ("build", ["LPKit"]);
-
-task ("install", ["debug", "release"])
-
-task ("symlink-narwhal", ["release", "debug"], function()
-{
-    // TODO: this should not be hardcoded to /usr/local - not sure how
-    // to actually find the path to narwhal right now though.
-    var frameworksPath = FILE.join("", "usr", "local", "narwhal", "packages", "cappuccino", "Frameworks");
-    
-    ["Release", "Debug"].forEach(function(aConfig)
-    {
-        print("Symlinking " + aConfig + " ...");
-        
-        if (aConfig === "Debug")
-            frameworksPath = FILE.join(frameworksPath, aConfig);
-        
-        var buildPath = FILE.absolute(FILE.join(ENV["CAPP_BUILD"], aConfig, "LPKit")),
-            symlinkPath = FILE.join(frameworksPath, "LPKit");
-        
-        OS.system(["sudo", "ln", "-s", buildPath, symlinkPath]);
-    });
-});
+task ("docs", ["documentation"]);
+task ("all", ["release", "debug", "documentation"]);
